@@ -139,9 +139,15 @@ for (i in seq(1, n_iterations)){
 print(m)
 {{plot(m_vals, errors)
 lines(m_vals, errors)}}
-
-
-
 ```
 
+
+
+```{r}
+adv = read.csv('e:/ml/Advertising.csv')
+adv_training = adv[sample(seq(1,nrow(adv)), 162),]
+adv_testing = adv[sample(seq(1,nrow(adv)), 38),]
+lm(sales~TV, data=adv_training)
+
+```
 

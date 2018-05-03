@@ -1,0 +1,38 @@
+---
+title: "Decision Trees"
+author: "Kathirmani Sukumar"
+date: "May 3, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(tree)
+adv = read.csv('e:/ml/Advertising.csv')
+```
+
+```{r}
+model = tree(sales~TV, data=adv)
+{{plot(model)
+  text(model)}}
+```
+
+
+```{r}
+cut = 100
+
+df = data.frame(x=adv$TV, y=adv$sales)
+
+samples_left = df %>% filter(x < cut)
+samples_right = df %>% filter(x > cut)
+avg_left = mean(samples_left$y)
+avg_right = mean(samples_right$y)
+
+df$yhat = ifelse(df$x<cut, avg_left, avg_right)
+mse = sum((df$y-df$yhat)^2)/nrow(df)
+```
+
