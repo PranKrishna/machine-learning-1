@@ -21,7 +21,7 @@ model = tree(sales~TV, data=adv)
   text(model)}}
 ```
 
-
+### MSE for single cut
 ```{r}
 cut = 100
 
@@ -34,5 +34,131 @@ avg_right = mean(samples_right$y)
 
 df$yhat = ifelse(df$x<cut, avg_left, avg_right)
 mse = sum((df$y-df$yhat)^2)/nrow(df)
+mse
+```
+
+### MSE for all the cuts
+```{r}
+xx = c(1,2,3,4,5)
+(xx[1:length(xx)-1] + xx[2:length(xx)]) / 2
+```
+```{r}
+df = data.frame(x=adv$TV, y=adv$sales)
+tv_uniqs = sort(unique(df$x))
+cuts = (tv_uniqs[1:length(tv_uniqs)-1] + tv_uniqs[2:length(tv_uniqs)]) / 2
+mse_cuts = c()
+for (cut in cuts){
+  samples_left = df %>% filter(x < cut)
+  samples_right = df %>% filter(x > cut)
+  avg_left = mean(samples_left$y)
+  avg_right = mean(samples_right$y)
+  
+  df$yhat = ifelse(df$x<cut, avg_left, avg_right)
+  curr_mse = sum((df$y-df$yhat)^2)/nrow(df)
+  mse_cuts = c(mse_cuts, curr_mse)
+}
+result = data.frame(cuts=cuts, mse=mse_cuts)
+result %>% arrange(mse) %>% head(1)
+```
+
+```{r}
+temp = adv %>% filter(TV>122.05 & TV<240.9)
+df = data.frame(x=temp$TV, y=temp$sales)
+
+tv_uniqs = sort(unique(df$x))
+cuts = (tv_uniqs[1:length(tv_uniqs)-1] + tv_uniqs[2:length(tv_uniqs)]) / 2
+mse_cuts = c()
+for (cut in cuts){
+  samples_left = df %>% filter(x < cut)
+  samples_right = df %>% filter(x > cut)
+  avg_left = mean(samples_left$y)
+  avg_right = mean(samples_right$y)
+  
+  df$yhat = ifelse(df$x<cut, avg_left, avg_right)
+  curr_mse = sum((df$y-df$yhat)^2)/nrow(df)
+  mse_cuts = c(mse_cuts, curr_mse)
+}
+result = data.frame(cuts=cuts, mse=mse_cuts)
+result %>% arrange(mse) %>% head(1)
+
+```
+
+```{r}
+model2 = tree(sales~TV+radio, data=adv)
+{{plot(model2)
+text(model2)}}
+```
+
+```{r}
+temp = adv #%>% filter(TV>194.55 & radio >26.85)
+df = data.frame(TV=temp$TV, radio=temp$radio, y=temp$sales)
+tv_uniqs = sort(unique(df$TV))
+tv_cuts = (tv_uniqs[1:length(tv_uniqs)-1] + tv_uniqs[2:length(tv_uniqs)]) / 2
+radio_uniqs = sort(unique(df$radio))
+radio_cuts = (radio_uniqs[1:length(radio_uniqs)-1] + radio_uniqs[2:length(radio_uniqs)]) / 2
+
+predictors = c(rep('TV', length(tv_cuts)),
+               rep('radio', length(radio_cuts)))
+cuts = c(tv_cuts, radio_cuts)
+mse_cuts = c()
+for (i in seq(1, length(cuts))){
+  cut = cuts[i]
+  samples_left = df[df[,predictors[i]]<cut, ]
+  samples_right = df[df[,predictors[i]]>cut, ]
+  avg_left = mean(samples_left$y)
+  avg_right = mean(samples_right$y)
+  
+  df$yhat = ifelse(df[,predictors[i]]<cut, avg_left, avg_right)
+  curr_mse = sum((df$y-df$yhat)^2)/nrow(df)
+  mse_cuts = c(mse_cuts, curr_mse)
+}
+result = data.frame(predictor=predictors, cuts=cuts, mse=mse_cuts)
+result %>% arrange(mse) %>% head(1)
+```
+
+```{r}
+df[df[,'TV']>cut,]
+```
+
+```{r}
+temp = adv #%>% filter(TV>194.55 & radio >26.85)
+df = data.frame(TV=temp$TV, radio=temp$radio, y=temp$sales)
+tv_uniqs = sort(unique(df$TV))
+tv_cuts = (tv_uniqs[1:length(tv_uniqs)-1] + tv_uniqs[2:length(tv_uniqs)]) / 2
+radio_uniqs = sort(unique(df$radio))
+radio_cuts = (radio_uniqs[1:length(radio_uniqs)-1] + radio_uniqs[2:length(radio_uniqs)]) / 2
+
+predictors = c(rep('TV', length(tv_cuts)),
+               rep('radio', length(radio_cuts)))
+cuts = c(tv_cuts, radio_cuts)
+vardev_cuts = c()
+for (i in seq(1, length(cuts))){
+  cut = cuts[i]
+  samples_left = df[df[,predictors[i]]<cut, ]
+  samples_right = df[df[,predictors[i]]>cut, ]
+  avg_left = mean(samples_left$y)
+  avg_right = mean(samples_right$y)
+  
+  curr_vardev = var(df$y) - (nrow(samples_left)/nrow(df))*var(samples_left$y) -
+    (nrow(samples_right)/nrow(df))*var(samples_right$y)
+  vardev_cuts = c(vardev_cuts, curr_vardev)
+}
+result = data.frame(predictor=predictors, cuts=cuts, vardev=vardev_cuts)
+result %>% arrange(-vardev) %>% head(1)
+```
+
+
+```{r}
+hr = read.csv('e:/datasets/ibm-watson/HR Analytics.csv')
+
+View(hr)
+
+hr$Attrition = as.factor(hr$Attrition)
+model = rpart(Attrition~OverTime, data=hr)
+library(rattle)
+fancyRpartPlot(model)
+library(dplyr)
+nrow(hr %>% dplyr::filter(OverTime=='Yes')) 
+unique(hr$OverTime)
 ```
 
