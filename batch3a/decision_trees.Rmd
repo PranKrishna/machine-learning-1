@@ -65,7 +65,7 @@ cuts_newspaper = (newspaper_uniqs[1:length(newspaper_uniqs)-1] +newspaper_uniqs[
 ## Method 1
 
 library(dplyr)
-temp = adv %>% filter(TV >122.05 )
+temp = adv %>% filter(TV >122.05)
 nrow(temp)
 tv_cuts_mse = c()
 for (cut in cuts_tv){
@@ -119,15 +119,18 @@ nrow(result)
 result %>% arrange(mse) %>% head(1)
 
 nrow(adv %>% filter(TV<122.05))
+```
 
+```{r}
 ## Method 2
 cuts = c(cuts_tv, cuts_radio, cuts_newspaper)
 predictors = c(rep('TV', length(cuts_tv)), rep('radio', length(cuts_radio)),
                rep('newspaper', length(cuts_newspaper)))
 result = data.frame(cut=cuts, predictor=predictors)
-cuts_mse = c()
 
-temp = adv
+temp = adv %>% filter(radio > 26.85 & TV >122.05 & TV > 194.55)
+cuts_mse = c()
+var_devs = c()
 for (i in seq(1, length(cuts))){
   cut = cuts[i]
   curr_col = predictors[i]
@@ -135,16 +138,146 @@ for (i in seq(1, length(cuts))){
   samples_right = temp[temp[, curr_col]>cut,]
   pred_left = mean(samples_left$sales)
   pred_right = mean(samples_right$sales)
+  var_temp = var(temp$sales)
+  var_left = var(samples_left$sales)
+  var_right = var(samples_right$sales)
+  
+  var_dev = var_temp - (nrow(samples_left)/nrow(temp)*var_left) - (nrow(samples_right)/nrow(temp)*var_right)
   temp$pred = ifelse(temp[,curr_col]<cut, pred_left, pred_right)
   curr_mse = sum((temp$sales-temp$pred)^2)/nrow(temp)
   cuts_mse = c(cuts_mse, curr_mse)
+  var_devs = c(var_devs, var_dev)
 }
 result$mse = cuts_mse
-View(result)
-result %>% arrange(mse) %>% head(1)
+result$var_dev = var_devs
+result %>% arrange(-var_dev) %>% head(10)
+```
+
+### Classification
+```{r, fig.width=11, fig.height=8}
+hr = read.csv('e:/datasets/ibm-watson/HR Analytics.csv')
+hr_train = hr[1:(0.7*nrow(hr)),]
+hr_test = hr[(0.7*nrow(hr)+1):nrow(hr),]
+
+model = tree(Attrition~., data=hr_train)
+{{plot(model)
+  text(model)}}
 ```
 
 ```{r}
-View(temp[, curr_col]<cut)
+m1 = rpart(Attrition~OverTime+Gender, data=hr_train)
+{{plot(m1)
+  text(m1)}}
+
+library(rattle)
+fancyRpartPlot(m1)
 ```
 
+## Gini impurity
+### Input variable: Categorical with two classes
+```{r}
+nrow(hr_train)
+left_overtime = hr_train %>% filter(OverTime=='Yes')
+right_overtime = hr_train %>% filter(OverTime=='No')
+nrow(left_overtime)
+nrow(right_overtime)
+table(left_overtime$Attrition)
+1 - (96/303)^2 - (207/303)^2
+
+table(right_overtime$Attrition)
+1 - (76/726)^2 - (650/726)^2
+```
+
+
+```{r}
+left_gender = hr_train %>% filter(Gender=='Female')
+right_gender = hr_train %>% filter(Gender=='Male')
+table(left_gender$Attrition)
+gi_left = 1 - (364/nrow(left_gender))^2 - (67/nrow(left_gender))^2
+table(right_gender$Attrition)
+gi_right = 1 - (105/nrow(right_gender))^2 - (493/nrow(right_gender))^2
+gi_gender = nrow(left_gender)/nrow(hr_train)*gi_left + nrow(right_gender)/nrow(hr_train)*gi_right
+gi_gender
+
+
+table(hr_train$Attrition)
+1 - (857/nrow(hr_train))^2 - (172/nrow(hr_train))^2
+
+model = tree(Attrition~OverTime+Gender, data=hr_train)
+{{plot(model)
+  text(model)}}
+```
+
+
+
+```{r}
+library(dplyr)
+marital_status_uniq = unique(hr_train$MaritalStatus)
+for (status in marital_status_uniq){
+  samples_left = hr_train %>% filter(MaritalStatus == status)
+  samples_right = hr_train %>% filter(MaritalStatus != status)
+  p0_left = nrow(samples_left %>% filter(Attrition==0))/nrow(samples_left)
+  p1_left = nrow(samples_left %>% filter(Attrition==1))/nrow(samples_left)
+  gi_left = 1 - p0_left^2 - p1_left^2
+  
+  p0_right = nrow(samples_right %>% filter(Attrition==0))/nrow(samples_right)
+  p1_right = nrow(samples_right %>% filter(Attrition==1))/nrow(samples_right)
+  gi_right = 1 - p0_right^2 - p1_right^2
+  
+  gi_status = nrow(samples_left)/nrow(hr_train)*gi_left + nrow(samples_right)/nrow(hr_train) * gi_right
+  temp = marital_status_uniq[marital_status_uniq!=status]
+  print('left node')
+  print (status)
+  print('right node')
+  print (temp)
+  print (gi_status)
+  print ('------------------------------')
+}
+```
+
+```{r}
+jobs_uniq = unique(hr_train$JobRole) 
+combinations_left = c()
+combinations_right = c()
+gi_all = c()
+for (n in c(1,2,3,4)){
+  comb_n = combn(jobs_uniq, n, simplify = F)
+  for(i in seq(1,length(comb_n))){
+    comb_left = comb_n[[i]]
+    comb_right = jobs_uniq[!jobs_uniq %in% comb_left]
+    
+    samples_left = hr_train %>% filter(JobRole %in% comb_left)
+    samples_right = hr_train %>% filter(JobRole %in% comb_right)
+    
+    p0_left = nrow(samples_left %>% filter(Attrition==0))/nrow(samples_left)
+    p1_left = nrow(samples_left %>% filter(Attrition==1))/nrow(samples_left)
+    gi_left = 1 - p0_left^2 - p1_left^2
+    
+    p0_right = nrow(samples_right %>% filter(Attrition==0))/nrow(samples_right)
+    p1_right = nrow(samples_right %>% filter(Attrition==1))/nrow(samples_right)
+    gi_right = 1 - p0_right^2 - p1_right^2
+    
+    gi_status = nrow(samples_left)/nrow(hr_train)*gi_left + nrow(samples_right)/nrow(hr_train) * gi_right
+    
+    combinations_left = c(combinations_left, paste0(comb_left,collapse=','))
+    combinations_right = c(combinations_right, paste0(comb_right, collapse = ','))
+    gi_all = c(gi_all, gi_status)
+  }  
+}
+
+
+result = data.frame(left=combinations_left, right=combinations_right, gi=gi_all)
+
+result %>% arrange(gi) %>% head(1)
+```
+
+```{r, fig.width=8}
+model = rpart(Attrition~JobRole, data=hr_train)
+levels(hr_train$JobRole)
+{{plot(model)
+  text(model)}}
+```
+
+```{r}
+comb_right
+```
