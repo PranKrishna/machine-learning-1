@@ -206,6 +206,7 @@ table(hr_train$Attrition)
 model = tree(Attrition~OverTime+Gender, data=hr_train)
 {{plot(model)
   text(model)}}
+
 ```
 
 
@@ -281,3 +282,21 @@ levels(hr_train$JobRole)
 ```{r}
 comb_right
 ```
+
+```{r}
+model = rpart(Attrition~OverTime, data=hr_train)
+fancyRpartPlot(model)
+```
+
+```{r}
+table(hr_train$Attrition)
+samples_left = hr_train %>% filter(OverTime=='No')
+samples_right = hr_train %>% filter(OverTime=='Yes')
+nrow(samples_left)
+nrow(samples_left) / nrow(hr_train)
+
+
+nrow(samples_left %>% filter(Attrition == 0))/nrow(samples_left)
+```
+
+
