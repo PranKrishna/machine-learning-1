@@ -359,13 +359,104 @@ hr_test = hr[sample(seq(1, nrow(hr)), (0.3*nrow(hr))),]
 dim(hr_train)
 dim(hr_test)
 
-model = rpart(Attrition~Gender+MonthlyIncome+OverTime, data=hr_train)
+model = rpart(Attrition~MonthlyIncome+OverTime, data=hr_train, control=rpart.control(cp=-1, minsplit = 2, minbucket = 1))
 fancyRpartPlot(model)
 result = as.data.frame(predict(model, hr_test))
 View(result)
 hr_test$predict = ifelse(result$`0`>0.5, 0, 1)
 View(hr_test[, c('Attrition','predict')])
+
+hr_test %>% filter(predict==Attrition) %>% nrow()
+404 / nrow(hr_test)
+
+table(hr$Attrition)
+
+library(caret)
+
+table(hr_test$predict, hr_test$Attrition)
+
+hr_test %>% filter(Attrition==1, predict==0) %>% nrow()
+
+
+hr_test$predict = as.factor(hr_test$predict)
+cm = confusionMatrix(hr_test$predict, hr_test$Attrition, positive = '1')
+tp = 16
+tn = 354
+fp = 10
+fn = 61
+
+sns = tp / (tp+fn)
+sns
+cm
+```
+
+```{r}
+model = rpart(Attrition~MonthlyIncome+OverTime,data=hr)
+
+fancyRpartPlot(model)
+
+printcp(model)
+```
+
+### Simple Decision Tree
+```{r}
+model = rpart(Attrition~., data=hr_train)
+result = as.data.frame(predict(model, hr_test))
+hr_test$predict = ifelse(result$`0`>0.5, 0, 1)
+hr_test$predict = as.factor(hr_test$predict)
+confusionMatrix(hr_test$predict, hr_test$Attrition, positive='1')
+
+table(hr_train$Attrition)
+
+858/nrow(hr_train)
+```
+```{r}
+library(randomForest)
+mtry = round(sqrt(length(colnames(hr_train))-1))
+model_rf = randomForest(Attrition~., data=hr_train,
+                        ntree=400,
+                        mtry=mtry)
+hr_test$predicted = predict(model_rf, hr_test)
+cm = confusionMatrix(hr_test$predicted, hr_test$Attrition, positive='1')
+cm$overall['Accuracy']*100
+cm$byClass['Sensitivity']*100
+
+```
+
+```{r}
+input_predictors = colnames(hr_train %>% select(-Attrition))
+mtry = round(sqrt(length(input_predictors)))
+ntree = 400
+result = data.frame(actual = hr_test$Attrition)
+for (i in seq(1, ntree)){
+  sample_predictors = input_predictors[sample(1:length(input_predictors), mtry)]
+  samples_index = sample(seq(1,nrow(hr_train)), (0.6*nrow(hr_train)))
+  sample_data = hr_train[samples_index, c(sample_predictors, 'Attrition')]
+  curr_model = rpart(Attrition~., data=sample_data)
+  result[,paste0('tree_',i, collapse = '')] = predict(curr_model, (hr_test %>% select(sample_predictors)), type='class')
+}
+
+result$count_0 = rowSums((result %>% select(-actual)) == 0)
+result$count_1 = rowSums((result %>% select(-actual)) == 1)
+
+result$final = ifelse(result$count_0>result$count_1, 0, 1)
+```
+
+```{r}
+model_rf
 ```
 
 
+
+### Ada Boost
+```{r}
+library(adabag)
+model_boost = boosting(Attrition~., data=hr_train)
+predict_obj = predict(model_boost, hr_test)
+hr_test$pred = predict_obj$class
+hr_test$Attrition = as.factor(hr_test$Attrition)
+hr_test$pred = as.factor(hr_test$pred)
+confusionMatrix(hr_test$pred, hr_test$Attrition, positive = '1')
+
+```
 
