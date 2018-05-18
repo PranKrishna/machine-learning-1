@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
+library(BBmisc)
 ```
 
 
@@ -21,7 +22,7 @@ odi$missed_centuries = ifelse(odi$Runs>90&odi$Runs<100, 1,0)
 View(odi)
 ```
 
-
+### Create KPI metrics for each player
 ```{r}
 players_summary = odi %>% group_by(Player) %>% summarise(
   matches = n(),
@@ -34,5 +35,105 @@ players_summary = odi %>% group_by(Player) %>% summarise(
   missed_centuries=sum(missed_centuries, na.rm=T)
 )
 View(players_summary)
+```
+
+```{r}
+top_players = players_summary %>% arrange(-total_runs) %>% head(100)
+data_kmeans = top_players %>% select(-Player)
+data_norm = normalize(data_kmeans, range = c(0,1), method='range')
+model_kmeans = kmeans(data_norm, centers = 3)
+top_players$cluster = model_kmeans$cluster
+barplot(table(top_players$cluster))
+#View(data_norm)
+```
+
+## Cluster characteristics
+```{r}
+model_kmeans$centers
+```
+
+### Within square sums
+```{r}
+model_kmeans$withinss
+```
+
+
+```{r}
+model_kmeans$withinss
+data_norm$cluster = model_kmeans$cluster
+cluster1 = data_norm %>% filter(cluster==1)
+
+withinss = 0
+for (i in seq(1, nrow(cluster1))){
+  obs = dist(rbind(cluster1[i, ], model_kmeans$centers[1,]))^2
+  withinss = withinss + obs
+}
+withinss / nrow(cluster1)
+model_kmeans$centers[1,]
+cluster1[1,]
+```
+
+
+### Between square sums
+```{r}
+model_kmeans$betweenss
+```
+
+
+### Plotting Totalwithinss vs Number of clusters
+```{r}
+model_kmeans$tot.withinss
+
+
+```
+
+
+```{r}
+View(data_norm)
+dim(data_norm)
+dim(as.matrix(dist(data_norm %>% select(-cluster))))
+data_norm_2d = cmdscale(dist(data_norm %>% select(-cluster)))
+data_norm_2d = as.data.frame(data_norm_2d)
+data_norm_2d$cluster = as.factor(data_norm$cluster)
+library(ggplot2)
+ggplot(data_norm_2d, aes(x=V1, y=V2, color=cluster))+geom_point()
+
+
+hr = read.csv('e:/datasets/ibm-watson/HR Analytics.csv')
+hr_subset = hr %>% select(Age, MonthlyIncome)
+hr_subset$Age = as.numeric(hr_subset$Age)
+hr_subset_norm = normalize(hr_subset, method='range', range=c(0,1))
+model_hr = kmeans(hr_subset_norm, centers=2)
+hr_subset$cluster = as.factor(model_hr$cluster)
+ggplot(hr_subset, aes(x=Age, y=MonthlyIncome, color=cluster))+geom_point()
+```
+
+### Hierarchical clustering
+```{r}
+names(data_norm)
+hclust_model = hclust(dist(data_norm %>% select(-cluster)))
+plot(hclust_model)
+```
+
+### Get cluster labels
+```{r}
+data_norm$cluster = cutree(hclust_model, k=4)
+data_norm_2d = cmdscale(dist(data_norm%>%select(-cluster)))
+data_norm_2d = as.data.frame(data_norm_2d)
+data_norm_2d$cluster = as.factor(data_norm$cluster)
+View(data_norm_2d)
+ggplot(data_norm_2d, aes(x=V1, y=V2, color=cluster))+geom_point()
+```
+
+```{r}
+library(corrplot)
+cor_players = cor(t(data_norm %>% head(10) %>% select(-cluster)))
+corrplot(cor_players, order='hclust', addrect = 2)
+```
+
+```{r}
+install.packages('heatmaply')
+library(heatmaply)
+heatmaply(cor_players)
 ```
 
