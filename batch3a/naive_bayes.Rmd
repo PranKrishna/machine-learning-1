@@ -1,0 +1,32 @@
+---
+title: "Naive Bayes"
+author: "Kathirmani Sukumar"
+date: "May 17, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(e1071)
+hr = read.csv('e:/datasets/ibm-watson/HR Analytics.csv')
+hr$Attrition = as.factor(hr$Attrition)
+set.seed(100)
+hr_train = hr[sample(seq(1, nrow(hr)), (0.7*nrow(hr))),]
+set.seed(100)
+hr_test = hr[sample(seq(1, nrow(hr)), (0.3*nrow(hr))),]
+```
+
+```{r}
+model = naiveBayes(Attrition~JobRole+Gender+OverTime, data=hr_train)
+View(predict(model, hr_test, type='raw'))
+hr_test[12,'JobRole']
+```
+
+
+
+```{r}
+hr_train %>% filter(Attrition==0, Gender=='Female') %>% nrow()
+hr_train %>% filter(Attrition==0) %>% nrow()
+```
+
