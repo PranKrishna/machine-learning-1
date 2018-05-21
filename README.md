@@ -2,6 +2,8 @@
 Machine Learning Materials
 
 
+### Data set links
+- [Amazon Reviews data](http://snap.stanford.edu/data/web-Amazon-links.html)
 
 
 ### People to follow
