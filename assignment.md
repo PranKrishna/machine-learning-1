@@ -1,4 +1,18 @@
-### Assignment
+### Assignment - 1
+1. Housing prices
+2. Wine quality
+3. Credit worthiness
+4. Prediction of stopping distance
+5. Birth weight of infants
+6. K-Nearest Algorithm
+7. Lets build a regression model
+8. EDA - No Missing Data
+9. Stats - Lowest class mean calculation
+10. Stats - Mean in vehicle
+11. Stats - Replace with the mean
+12. Stats - Group statistical summaries
+
+### Assignment - 2
 
 The data set is provided in the shared onedrive folder in Datasets as - credit-default.csv
 - The dataset has the credit defaults as a class to be predicted .
